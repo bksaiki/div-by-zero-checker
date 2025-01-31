@@ -2,13 +2,28 @@ package org.checkerframework.checker.dividebyzero;
 
 import java.lang.annotation.Annotation;
 import java.util.Set;
+
 import javax.lang.model.element.AnnotationMirror;
+
 import org.checkerframework.checker.dividebyzero.qual.*;
 import org.checkerframework.dataflow.analysis.ConditionalTransferResult;
 import org.checkerframework.dataflow.analysis.RegularTransferResult;
 import org.checkerframework.dataflow.analysis.TransferInput;
 import org.checkerframework.dataflow.analysis.TransferResult;
-import org.checkerframework.dataflow.cfg.node.*;
+import org.checkerframework.dataflow.cfg.node.BinaryOperationNode;
+import org.checkerframework.dataflow.cfg.node.EqualToNode;
+import org.checkerframework.dataflow.cfg.node.FloatingDivisionNode;
+import org.checkerframework.dataflow.cfg.node.FloatingRemainderNode;
+import org.checkerframework.dataflow.cfg.node.GreaterThanNode;
+import org.checkerframework.dataflow.cfg.node.GreaterThanOrEqualNode;
+import org.checkerframework.dataflow.cfg.node.IntegerDivisionNode;
+import org.checkerframework.dataflow.cfg.node.IntegerRemainderNode;
+import org.checkerframework.dataflow.cfg.node.LessThanNode;
+import org.checkerframework.dataflow.cfg.node.LessThanOrEqualNode;
+import org.checkerframework.dataflow.cfg.node.NotEqualNode;
+import org.checkerframework.dataflow.cfg.node.NumericalAdditionNode;
+import org.checkerframework.dataflow.cfg.node.NumericalMultiplicationNode;
+import org.checkerframework.dataflow.cfg.node.NumericalSubtractionNode;
 import org.checkerframework.dataflow.expression.JavaExpression;
 import org.checkerframework.framework.flow.CFAnalysis;
 import org.checkerframework.framework.flow.CFStore;
@@ -76,8 +91,39 @@ public class DivByZeroTransfer extends CFTransfer {
    */
   private AnnotationMirror refineLhsOfComparison(
       Comparison operator, AnnotationMirror lhs, AnnotationMirror rhs) {
-    // TODO
-    return lhs;
+    
+    switch (operator) {
+        case EQ:
+          return glb(lhs, rhs);
+
+        case NE:
+          if (equal(rhs, reflect(AlwaysZero.class))) {
+            return reflect(NonZero.class);
+          } else {
+            return lhs;
+          }
+
+        case LE:
+        case GE:
+          if (equal(rhs, reflect(AlwaysZero.class))
+              || equal(rhs, reflect(MaybeZero.class))) {
+            return reflect(MaybeZero.class);
+          } else {
+            return lhs;
+          }
+
+        case LT:
+        case GT:
+          if (equal(rhs, reflect(AlwaysZero.class))
+              || equal(rhs, reflect(MaybeZero.class))) {
+            return reflect(NonZero.class);
+          } else {
+            return lhs;
+          }
+
+        default:
+            return lhs;
+    }
   }
 
   /**
@@ -97,8 +143,38 @@ public class DivByZeroTransfer extends CFTransfer {
    */
   private AnnotationMirror arithmeticTransfer(
       BinaryOperator operator, AnnotationMirror lhs, AnnotationMirror rhs) {
-    // TODO
-    return top();
+    // create switch statement to handle `MaybeZero` and `NotZero` cases
+    switch (operator) {
+      case PLUS:
+      case MINUS:
+        if (equal(lhs, reflect(AlwaysZero.class))) {
+          return rhs;
+        } else if (equal(rhs, reflect(AlwaysZero.class))) {
+          return lhs;
+        } else {
+          return top();
+        }
+
+      case TIMES:
+        if (equal(lhs, reflect(AlwaysZero.class)) || equal(rhs, reflect(AlwaysZero.class))) {
+          return reflect(AlwaysZero.class);
+        } else if (equal(lhs, reflect(NonZero.class)) && equal(rhs, reflect(NonZero.class))) {
+          return reflect(NonZero.class);
+        } else {
+          return top();
+        }
+
+      case DIVIDE:
+      case MOD:
+        if (equal(lhs, reflect(AlwaysZero.class))) {
+          return reflect(AlwaysZero.class);
+        } else {
+          return top();
+        }
+
+      default:
+        throw new IllegalArgumentException(operator.toString());
+    }
   }
 
   // ========================================================================

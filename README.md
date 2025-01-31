@@ -60,8 +60,16 @@ on types, to indicate more precisely what values the type represents.
 Here is a list of the type qualifiers that are supported by
 the Divide By Zero Checker, with an explanation of each one:
 
-TODO.
+- `MaybeZero`: an integral value that may be zero.
+This is the most general qualifier for this checker.
+For division or modulo operations, the checker will issue a warning if
+the divisor has this qualifier.
 
+- `NonZero`: an integral value that is known to be non-zero.
+
+- `AlwaysZero`: an integral value that is known to be zero.
+For division or modulo operations, the checker will issue a warning if
+the divisor has this qualifier.
 
 ## How to build the checker
 
